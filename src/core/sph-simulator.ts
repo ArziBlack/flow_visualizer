@@ -184,3 +184,5 @@ class SPHSimulator {
     return this.particles;
   }
 }
+
+export default SPHSimulator;
