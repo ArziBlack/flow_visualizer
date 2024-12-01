@@ -1,0 +1,51 @@
+{
+  "name": "visualizer",
+  "version": "1.0.0",
+  "description": "a library to visualize fluid flow in pipes for Feasibility giant 3D company software",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArziBlack/flow_visualizer.git"
+  },
+  "keywords": [
+    "F3D",
+    "CAD",
+    "Models",
+    "Fluid",
+    "flow"
+  ],
+  "author": "MiltonBlack, ArziBlack",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ArziBlack/flow_visualizer/issues"
+  },
+  "homepage": "https://github.com/ArziBlack/flow_visualizer#readme",
+  "dependencies": {
+    "gl-matrix": "^3.4.3",
+    "three": "^0.171.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.2",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.1",
+    "@types/three": "^0.170.0",
+    "@typescript-eslint/eslint-plugin": "^8.16.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^9.16.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.1",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2"
+  }
+}
