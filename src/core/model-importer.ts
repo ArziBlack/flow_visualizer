@@ -22,7 +22,7 @@ class ModelImporter {
     ".iges",
     ".igs",
     ".vtk",
-    "ies",
+    ".ies",
   ];
 
   async importModel(
