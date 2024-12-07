@@ -4,7 +4,8 @@
   "description": "a library to visualize fluid flow in pipes for Feasibility giant 3D company software",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
     "f3d": "webpack serve",
     "f3d:build": "webpack",
     "build": "tsc",
@@ -36,6 +37,7 @@
     "typescript": "^5.7.2",
     "webpack": "^5.96.1",
     "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.1.0",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
