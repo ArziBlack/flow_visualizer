@@ -8,7 +8,19 @@ interface SPHParticle {
   pressure: number;
 }
 
-class SPHSimulator {
+interface SimulationParameters {
+  bounds: THREE.Box3;
+  viscosity: number;
+  density: number;
+  flowRate: number;
+  timeStep: number;
+}
+
+export interface SimulationConfig extends SimulationParameters {
+  bounds: THREE.Box3;
+}
+
+export class SPHSimulator {
   private particles: SPHParticle[] = [];
   private boundingGeometry: THREE.Object3D;
 
@@ -19,11 +31,57 @@ class SPHSimulator {
     pressureCoefficient: 50,
   };
 
-  constructor(boundingGeometry: THREE.Object3D) {
-    this.boundingGeometry = boundingGeometry;
+  constructor(params: SimulationParameters) {
+    // Create a box mesh from the bounds
+    const geometry = new THREE.BoxGeometry(
+      params.bounds.max.x - params.bounds.min.x,
+      params.bounds.max.y - params.bounds.min.y,
+      params.bounds.max.z - params.bounds.min.z
+    );
+    this.boundingGeometry = new THREE.Mesh(geometry);
+    this.boundingGeometry.position.copy(
+      params.bounds.getCenter(new THREE.Vector3())
+    );
+
+    // Initialize simulation parameters
+    this.setSimulationParameters(params);
   }
 
-  initializeParticles(startVolume: THREE.Box3, particleSpacing: number): void {
+  public setSimulationParameters(params: SimulationParameters): void {
+    this.simulationParams = {
+      ...this.simulationParams,
+      restDensity: params.density,
+      viscosityCoefficient: params.viscosity,
+      pressureCoefficient: params.flowRate * 50, // Scale flow rate to pressure
+    };
+  }
+
+  public step(deltaTime: number): void {
+    this.calculateDensity();
+    this.calculatePressure();
+    this.applyForces(deltaTime);
+    this.updatePositions(deltaTime);
+  }
+
+  public resetSimulation(): void {
+    // Reset all particles to their initial positions
+    const bounds = new THREE.Box3().setFromObject(this.boundingGeometry);
+    this.particles = [];
+    this.initializeParticles(bounds, this.simulationParams.kernelRadius);
+  }
+
+  public getParticlePositions(): vec3[] {
+    return this.particles.map((particle) => particle.position);
+  }
+
+  public getParticleVelocities(): vec3[] {
+    return this.particles.map((particle) => particle.velocity);
+  }
+
+  public initializeParticles(
+    startVolume: THREE.Box3,
+    particleSpacing: number
+  ): void {
     const min = startVolume.min;
     const max = startVolume.max;
 
@@ -52,7 +110,6 @@ class SPHSimulator {
         );
 
         if (distance < this.simulationParams.kernelRadius) {
-          //   Kernel function (eg, Poly6 kernel)
           density += this.poly6Kernel(distance);
         }
       });
@@ -69,13 +126,6 @@ class SPHSimulator {
     return Math.max(0, value);
   }
 
-  simulate(deltaTime: number): void {
-    this.calculateDensity();
-    this.calculatePressure();
-    this.applyForces(deltaTime);
-    this.updatePositions(deltaTime);
-  }
-
   private calculatePressure(): void {
     this.particles.forEach((particle) => {
       particle.pressure =
@@ -90,7 +140,7 @@ class SPHSimulator {
       const viscosityForce = vec3.create();
 
       this.particles.forEach((other_particle) => {
-        if (particle != other_particle) {
+        if (particle !== other_particle) {
           const distance = vec3.distance(
             particle.position,
             other_particle.position
@@ -104,8 +154,8 @@ class SPHSimulator {
             );
 
             vec3.add(
-              pressureForce,
-              pressureForce,
+              viscosityForce,
+              viscosityForce,
               this.calculateViscosityForce(particle, other_particle)
             );
           }
@@ -131,7 +181,7 @@ class SPHSimulator {
     const distance = vec3.distance(particle1.position, particle2.position);
 
     const pressureTerm =
-      (particle1.pressure + particle2.pressure) / (2 * particle2.pressure);
+      (particle1.pressure + particle2.pressure) / (2 * particle2.density);
     vec3.scale(
       force,
       vec3.sub(vec3.create(), particle2.position, particle1.position),
@@ -145,8 +195,7 @@ class SPHSimulator {
     particle2: SPHParticle
   ): vec3 {
     const force = vec3.create();
-
-    vec3.sub(force, particle1.velocity, particle2.velocity);
+    vec3.sub(force, particle2.velocity, particle1.velocity);
     return force;
   }
 
@@ -164,9 +213,7 @@ class SPHSimulator {
   }
 
   private handleBoundaryCollision(particle: SPHParticle): void {
-    const bounds: THREE.Box3 = new THREE.Box3().setFromObject(
-      this.boundingGeometry
-    );
+    const bounds = new THREE.Box3().setFromObject(this.boundingGeometry);
 
     ["x", "y", "z"].forEach((axis, index) => {
       if (particle.position[index] < bounds.min.getComponent(index)) {
@@ -179,10 +226,4 @@ class SPHSimulator {
       }
     });
   }
-
-  getParticles(): SPHParticle[] {
-    return this.particles;
-  }
 }
-
-export default SPHSimulator;

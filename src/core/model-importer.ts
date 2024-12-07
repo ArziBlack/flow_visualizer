@@ -11,7 +11,7 @@ interface CADModelImportOptions {
   centerModel?: boolean;
 }
 
-class ModelImporter {
+export class ModelImporter {
   private supportedFormats: string[] = [
     ".stl",
     ".obj",
@@ -26,34 +26,39 @@ class ModelImporter {
   ];
 
   async importModel(
-    filePath: string,
+    file: File,
     options: CADModelImportOptions = {}
   ): Promise<THREE.Object3D> {
-    const extension = this.getFileExtension(filePath);
+    const extension = this.getFileExtension(file.name);
+    const url = URL.createObjectURL(file);
 
-    switch (extension.toLowerCase()) {
-      case ".stl":
-        return this.importSTL(filePath, options);
-      case ".obj":
-        return this.importOBJ(filePath, options);
-      case ".gltf":
-      case ".glb":
-        return this.importGLTF(filePath, options);
-      case ".vtk":
-        return this.importVTK(filePath, options);
-      case ".ies":
-        return this.importIES(filePath, options);
-      default:
-        throw new Error(`unsupported file format ${extension}`);
+    try {
+      switch (extension.toLowerCase()) {
+        case ".stl":
+          return await this.importSTL(url, options);
+        case ".obj":
+          return await this.importOBJ(url, options);
+        case ".gltf":
+        case ".glb":
+          return await this.importGLTF(url, options);
+        case ".vtk":
+          return await this.importVTK(url, options);
+        case ".ies":
+          return await this.importIES(url, options);
+        default:
+          throw new Error(`Unsupported file format ${extension}`);
+      }
+    } finally {
+      URL.revokeObjectURL(url);
     }
   }
 
   private async importSTL(
-    filePath: string,
+    url: string,
     options: CADModelImportOptions
   ): Promise<THREE.Mesh> {
     const loader = new STLLoader();
-    const geometry = await loader.loadAsync(filePath);
+    const geometry = await loader.loadAsync(url);
     const material = new THREE.MeshStandardMaterial({ color: 0x888888 });
     const mesh = new THREE.Mesh(geometry, material);
 
@@ -62,33 +67,33 @@ class ModelImporter {
   }
 
   private async importOBJ(
-    filePath: string,
+    url: string,
     options: CADModelImportOptions
   ): Promise<THREE.Object3D> {
     const loader = new OBJLoader();
-    const object = await loader.loadAsync(filePath);
+    const object = await loader.loadAsync(url);
 
     this.preprocessObject(object, options);
     return object;
   }
 
   private async importGLTF(
-    filePath: string,
+    url: string,
     options: CADModelImportOptions
   ): Promise<THREE.Object3D> {
     const loader = new GLTFLoader();
-    const gltf = await loader.loadAsync(filePath);
+    const gltf = await loader.loadAsync(url);
 
     this.preprocessObject(gltf.scene, options);
     return gltf.scene;
   }
 
   private async importVTK(
-    filePath: string,
+    url: string,
     options: CADModelImportOptions
   ): Promise<THREE.Object3D> {
     const loader = new VTKLoader();
-    const geometry = await loader.loadAsync(filePath);
+    const geometry = await loader.loadAsync(url);
     const material = new THREE.MeshStandardMaterial({
       color: 0x888888,
       wireframe: false,
@@ -100,14 +105,14 @@ class ModelImporter {
   }
 
   private async importIES(
-    filePath: string,
+    url: string,
     options: CADModelImportOptions
   ): Promise<THREE.Object3D> {
     const loader = new IESLoader();
-    const iesTexture = await loader.loadAsync(filePath);
+    const iesTexture = await loader.loadAsync(url);
 
     const light = new THREE.SpotLight(0xffffff, 1);
-    light.angle = Math.PI / 6; // Adjust angle as needed
+    light.angle = Math.PI / 6;
     light.decay = 2;
     light.distance = 100;
     light.intensity = 10;
@@ -118,8 +123,8 @@ class ModelImporter {
     return light;
   }
 
-  private getFileExtension(filePath: string): string {
-    return filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+  private getFileExtension(filename: string): string {
+    return filename.slice(filename.lastIndexOf(".")).toLowerCase();
   }
 
   private processMesh(mesh: THREE.Mesh, options: CADModelImportOptions): void {

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F3D Giant Pipe Flow Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            font-family: Arial, sans-serif;
+        }
+        #simulation-container {
+            flex: 1;
+            height: 100vh;
+        }
+        #control-panel {
+            width: 300px;
+            background: #f0f0f0;
+            padding: 20px;
+            overflow-y: auto;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .control-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin: 8px 0;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        button {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="simulation-container"></div>
+    <div id="control-panel">
+        <!-- Model Import Section -->
+        <div class="control-section">
+            <div class="section-title">Import Model</div>
+            <input type="file" id="model-input" accept=".stl,.obj,.gltf,.fcstd">
+            <div id="model-info"></div>
+        </div>
+
+        <!-- Fluid Properties Section -->
+        <div class="control-section">
+            <div class="section-title">Fluid Properties</div>
+            <label>
+                Viscosity (Pa·s):
+                <input type="number" id="viscosity" value="0.001" step="0.001" min="0">
+            </label>
+            <label>
+                Density (kg/m³):
+                <input type="number" id="density" value="1000" step="1" min="0">
+            </label>
+            <label>
+                Flow Rate (m³/s):
+                <input type="number" id="flow-rate" value="0.001" step="0.001" min="0">
+            </label>
+        </div>
+
+        <!-- Simulation Controls Section -->
+        <div class="control-section">
+            <div class="section-title">Simulation Controls</div>
+            <label>
+                Particle Size:
+                <input type="range" id="particle-size" min="0.001" max="0.01" step="0.001" value="0.005">
+            </label>
+            <label>
+                Time Step (s):
+                <input type="number" id="time-step" value="0.001" step="0.001" min="0">
+            </label>
+            <button id="start-btn">Start Simulation</button>
+            <button id="pause-btn">Pause</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+
+        <!-- Visualization Options -->
+        <div class="control-section">
+            <div class="section-title">Visualization</div>
+            <label>
+                <input type="checkbox" id="show-velocity">
+                Show Velocity Colors
+            </label>
+            <label>
+                <input type="checkbox" id="show-pressure">
+                Show Pressure Colors
+            </label>
+            <label>
+                Model Opacity:
+                <input type="range" id="model-opacity" min="0" max="1" step="0.1" value="0.7">
+            </label>
+        </div>
+    </div>
+    <script type="module" src="dist/bundle.js"></script>
+</body>
+</html>

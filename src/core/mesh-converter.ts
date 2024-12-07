@@ -40,8 +40,6 @@ class MeshConverter {
     );
 
     return volumetricGeometry;
-
-    return geometry;
   }
 
   static extractBoundingVolume(model: THREE.Object3D): THREE.Box3 {
