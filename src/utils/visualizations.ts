@@ -109,6 +109,15 @@ export class Visualizer {
     }
   }
 
+  // Add these new methods
+  public addToScene(object: THREE.Object3D): void {
+    this.scene.add(object);
+  }
+
+  public removeFromScene(object: THREE.Object3D): void {
+    this.scene.remove(object);
+  }
+
   public updateParticleSize(size: number): void {
     if (this.particles) {
       (this.particles.material as THREE.PointsMaterial).size = size;

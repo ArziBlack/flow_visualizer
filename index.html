@@ -115,6 +115,20 @@
                 <input type="range" id="model-opacity" min="0" max="1" step="0.1" value="0.7">
             </label>
         </div>
+
+        <div class="control-section">
+            <div class="section-title">Time Control</div>
+            <input type="range" id="time-slider" min="0" max="100" step="1" value="0">
+            <div id="time-info"></div>
+            <div id="simulation-info"></div>
+        </div>
+        
+        <!-- Add separate input for OpenFOAM files -->
+        <div class="control-section">
+            <div class="section-title">OpenFOAM Import</div>
+            <input type="file" id="foam-input" multiple webkitdirectory directory>
+            <small>Select all VTK files from OpenFOAM simulation</small>
+        </div>
     </div>
     <script type="module" src="dist/bundle.js"></script>
 </body>

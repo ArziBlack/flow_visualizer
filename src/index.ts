@@ -1,5 +1,3 @@
-// src/index.ts
-
 import ModelImporter from "./core/model-importer";
 import { SimulationConfig, SPHSimulator } from "./core/sph-simulator";
 import { Visualizer } from "./utils/visualizations";
@@ -7,6 +5,7 @@ import { GeometryUtils } from "./utils/geometry-utils";
 import { ParticleOperations } from "./utils/particle-operations";
 import * as THREE from "three";
 import { vec3 } from "gl-matrix";
+import { OpenFOAMTimeSeriesHandler } from "./adapters/open-foam";
 
 interface FluidProperties {
   viscosity: number;
@@ -22,6 +21,8 @@ class PipeFlowSimulation {
   private isSimulating: boolean = false;
   private animationFrameId: number | null = null;
   private model: THREE.Object3D | null = null;
+  private timeSeriesHandler: OpenFOAMTimeSeriesHandler;
+  private currentVisualization: THREE.Group | null = null;
 
   constructor() {
     this.modelImporter = new ModelImporter();
@@ -29,6 +30,7 @@ class PipeFlowSimulation {
       document.getElementById("simulation-container")!
     );
     this.setupEventListeners();
+    this.timeSeriesHandler = new OpenFOAMTimeSeriesHandler();
   }
 
   private setupEventListeners(): void {
@@ -71,13 +73,107 @@ class PipeFlowSimulation {
       const opacity = parseFloat((e.target as HTMLInputElement).value);
       this.visualizer.updateModelOpacity(opacity);
     });
+
+    // Add time series controls
+    document.getElementById("time-slider")?.addEventListener("input", (e) => {
+      const timeStep = parseInt((e.target as HTMLInputElement).value);
+      this.updateTimeStep(timeStep);
+    });
+
+    // Multiple file input handler for OpenFOAM files
+    const foamInput = document.getElementById("foam-input") as HTMLInputElement;
+    foamInput?.addEventListener("change", this.handleOpenFOAMImport.bind(this));
+  }
+
+  private async handleOpenFOAMImport(event: Event): Promise<void> {
+    const files = (event.target as HTMLInputElement).files;
+    if (!files || files.length === 0) return;
+
+    try {
+      await this.timeSeriesHandler.loadSimulationDirectory(files);
+
+      // Get available time steps
+      const timeSteps = this.timeSeriesHandler.getAvailableTimeSteps();
+
+      // Update time slider
+      const timeSlider = document.getElementById(
+        "time-slider"
+      ) as HTMLInputElement;
+      if (timeSlider) {
+        timeSlider.min = timeSteps[0].toString();
+        timeSlider.max = timeSteps[timeSteps.length - 1].toString();
+        timeSlider.value = timeSteps[0].toString();
+      }
+
+      // Create initial visualization
+      this.updateTimeStep(timeSteps[0]);
+
+      // Show simulation info
+      const simInfo = document.getElementById("simulation-info");
+      if (simInfo) {
+        const boundaryInfo = Array.from(
+          this.timeSeriesHandler.getBoundaries().entries()
+        )
+          .map(([type, conditions]) => `${type}: ${conditions.length} parts`)
+          .join(", ");
+
+        simInfo.textContent = `OpenFOAM simulation loaded: 
+            ${timeSteps.length} time steps, 
+            Boundaries: ${boundaryInfo}`;
+      }
+    } catch (error) {
+      console.error("Error loading OpenFOAM data:", error);
+      alert("Error loading OpenFOAM simulation files.");
+    }
+  }
+
+  private updateTimeStep(timeStep: number): void {
+    // Remove current visualization if it exists
+    if (this.currentVisualization) {
+      this.visualizer.removeFromScene(this.currentVisualization);
+    }
+
+    // Create new visualization for the time step
+    this.currentVisualization =
+      this.timeSeriesHandler.createVisualization(timeStep);
+    this.visualizer.addToScene(this.currentVisualization);
+
+    // Update info display
+    const timeInfo = document.getElementById("time-info");
+    if (timeInfo) {
+      const flowData = this.timeSeriesHandler.getFlowDataAtTime(timeStep);
+      if (flowData) {
+        const maxVelocity = Math.max(
+          ...Array.from(flowData.velocity).reduce((acc: number[], _, i) => {
+            if (i % 3 === 0) {
+              const vx = flowData.velocity[i];
+              const vy = flowData.velocity[i + 1];
+              const vz = flowData.velocity[i + 2];
+              acc.push(Math.sqrt(vx * vx + vy * vy + vz * vz));
+            }
+            return acc;
+          }, [])
+        );
+
+        timeInfo.textContent = `Time: ${timeStep}s, Max Velocity: ${maxVelocity.toFixed(2)} m/s`;
+      }
+    }
   }
 
   private async handleModelImport(event: Event): Promise<void> {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
 
+    const extension = file.name.toLowerCase().split(".").pop();
+
     try {
+      if (extension === "vtk") {
+        // Handle as OpenFOAM file
+        const files = (event.target as HTMLInputElement).files;
+        if (files) {
+          await this.handleOpenFOAMImport(event);
+        }
+      }
       const model = await this.modelImporter.importModel(file);
       this.visualizer.setModel(model);
 
