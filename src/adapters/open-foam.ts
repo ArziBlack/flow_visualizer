@@ -1,15 +1,6 @@
 import * as THREE from "three";
 import { VTKLoader } from "three/examples/jsm/loaders/VTKLoader";
 
-interface OpenFOAMFiles {
-  timeSteps: Map<number, File>;
-  boundaries: {
-    inlet: File[];
-    outlet: File[];
-    walls: File[];
-  };
-}
-
 interface VTKFlowData {
   velocity: Float32Array;
   pressure: Float32Array;
@@ -25,107 +16,28 @@ interface BoundaryCondition {
 export class OpenFOAMTimeSeriesHandler {
   private vtkLoader: VTKLoader;
   private timeSteps: Map<number, VTKFlowData> = new Map();
-  private boundaries: Map<string, BoundaryCondition[]> = new Map();
+  private boundaries: Map<string, BoundaryCondition> = new Map();
   private currentTimeStep: number = 0;
 
   constructor() {
     this.vtkLoader = new VTKLoader();
   }
 
-  async loadSimulationDirectory(files: FileList): Promise<void> {
-    const organizedFiles = this.organizeFiles(files);
+  async loadSimulationData(files: FileList): Promise<void> {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileName = file.name.toLowerCase();
 
-    // Load boundaries first
-    await this.loadBoundaries(organizedFiles.boundaries);
-
-    // Then load time steps
-    for (const [timeStep, file] of organizedFiles.timeSteps) {
-      await this.loadTimeStep(file, timeStep);
+      if (fileName.includes("pigging-simulation_")) {
+        // Handle time series data
+        const timeStep = parseInt(fileName.match(/\d+/)?.[0] ?? "0");
+        await this.loadTimeStep(file, timeStep);
+      } else if (["inlet", "outlet", "walls"].includes(fileName)) {
+        // Handle boundary conditions
+        await this.loadBoundary(file, fileName as "inlet" | "outlet" | "wall");
+      }
     }
   }
-
-  private organizeFiles(files: FileList): OpenFOAMFiles {
-    const organized: OpenFOAMFiles = {
-      timeSteps: new Map(),
-      boundaries: {
-        inlet: [],
-        outlet: [],
-        walls: [],
-      },
-    };
-
-    Array.from(files).forEach((file) => {
-      const path = file.webkitRelativePath || file.name;
-      const parts = path.split("/");
-
-      // Check if it's a pigging simulation time step
-      if (file.name.match(/pigging-simulation_\d+\.vtk$/)) {
-        const timeStep = parseInt(file.name.match(/\d+/)![0]);
-        organized.timeSteps.set(timeStep, file);
-        return;
-      }
-
-      // Check boundary files
-      if (parts.includes("inlet") && file.name.endsWith(".vtk")) {
-        organized.boundaries.inlet.push(file);
-      } else if (parts.includes("outlet") && file.name.endsWith(".vtk")) {
-        organized.boundaries.outlet.push(file);
-      } else if (parts.includes("walls") && file.name.endsWith(".vtk")) {
-        organized.boundaries.walls.push(file);
-      }
-    });
-
-    return organized;
-  }
-
-  private async loadBoundaries(boundaries: {
-    inlet: File[];
-    outlet: File[];
-    walls: File[];
-  }): Promise<void> {
-    const loadBoundaryFiles = async (
-      files: File[],
-      type: string
-    ): Promise<void> => {
-      const boundaryGeometries: BoundaryCondition[] = [];
-
-      for (const file of files) {
-        const url = URL.createObjectURL(file);
-        try {
-          const geometry = await this.vtkLoader.loadAsync(url);
-          boundaryGeometries.push({
-            type: type as "inlet" | "outlet" | "wall",
-            geometry: geometry,
-          });
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      }
-
-      this.boundaries.set(type, boundaryGeometries);
-    };
-    await Promise.all([
-      loadBoundaryFiles(boundaries.inlet, "inlet"),
-      loadBoundaryFiles(boundaries.outlet, "outlet"),
-      loadBoundaryFiles(boundaries.walls, "wall"),
-    ]);
-  }
-
-  // async loadSimulationData(files: FileList): Promise<void> {
-  //   for (let i = 0; i < files.length; i++) {
-  //     const file = files[i];
-  //     const fileName = file.name.toLowerCase();
-
-  //     if (fileName.includes("pigging-simulation_")) {
-  //       // Handle time series data
-  //       const timeStep = parseInt(fileName.match(/\d+/)?.[0] ?? "0");
-  //       await this.loadTimeStep(file, timeStep);
-  //     } else if (["inlet", "outlet", "walls"].includes(fileName)) {
-  //       // Handle boundary conditions
-  //       await this.loadBoundary(file, fileName as "inlet" | "outlet" | "wall");
-  //     }
-  //   }
-  // }
 
   private async loadTimeStep(file: File, timeStep: number): Promise<void> {
     const url = URL.createObjectURL(file);
@@ -139,18 +51,18 @@ export class OpenFOAMTimeSeriesHandler {
     }
   }
 
-  //   private async loadBoundary(
-  //     file: File,
-  //     type: "inlet" | "outlet" | "wall"
-  //   ): Promise<void> {
-  //     const url = URL.createObjectURL(file);
-  //     try {
-  //       const geometry = await this.vtkLoader.loadAsync(url);
-  //       this.boundaries.set(type, { type, geometry });
-  //     } finally {
-  //       URL.revokeObjectURL(url);
-  //     }
-  //   }
+  private async loadBoundary(
+    file: File,
+    type: "inlet" | "outlet" | "wall"
+  ): Promise<void> {
+    const url = URL.createObjectURL(file);
+    try {
+      const geometry = await this.vtkLoader.loadAsync(url);
+      this.boundaries.set(type, { type, geometry });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
 
   public getAvailableTimeSteps(): number[] {
     return Array.from(this.timeSteps.keys()).sort((a, b) => a - b);
@@ -164,7 +76,7 @@ export class OpenFOAMTimeSeriesHandler {
     return this.timeSteps.get(timeStep);
   }
 
-  public getBoundaries(): Map<string, BoundaryCondition[]> {
+  public getBoundaries(): Map<string, BoundaryCondition> {
     return this.boundaries;
   }
 
@@ -178,17 +90,14 @@ export class OpenFOAMTimeSeriesHandler {
       wall: 0x808080, // Gray
     };
 
-    // Handle arrays of boundary conditions
-    this.boundaries.forEach((boundaryArray, type) => {
-      boundaryArray.forEach((boundary) => {
-        const material = new THREE.MeshPhongMaterial({
-          color: boundaryColors[boundary.type as keyof typeof boundaryColors],
-          transparent: true,
-          opacity: 0.5,
-        });
-        const mesh = new THREE.Mesh(boundary.geometry, material);
-        group.add(mesh);
+    this.boundaries.forEach((boundary, type) => {
+      const material = new THREE.MeshPhongMaterial({
+        color: boundaryColors[type as keyof typeof boundaryColors],
+        transparent: true,
+        opacity: 0.5,
       });
+      const mesh = new THREE.Mesh(boundary.geometry, material);
+      group.add(mesh);
     });
 
     // Add flow visualization if we have data for this time step

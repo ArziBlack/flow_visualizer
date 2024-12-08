@@ -90,7 +90,8 @@ class PipeFlowSimulation {
     if (!files || files.length === 0) return;
 
     try {
-      await this.timeSeriesHandler.loadSimulationDirectory(files);
+      // Load all OpenFOAM VTK files
+      await this.timeSeriesHandler.loadSimulationData(files);
 
       // Get available time steps
       const timeSteps = this.timeSeriesHandler.getAvailableTimeSteps();
@@ -111,15 +112,7 @@ class PipeFlowSimulation {
       // Show simulation info
       const simInfo = document.getElementById("simulation-info");
       if (simInfo) {
-        const boundaryInfo = Array.from(
-          this.timeSeriesHandler.getBoundaries().entries()
-        )
-          .map(([type, conditions]) => `${type}: ${conditions.length} parts`)
-          .join(", ");
-
-        simInfo.textContent = `OpenFOAM simulation loaded: 
-            ${timeSteps.length} time steps, 
-            Boundaries: ${boundaryInfo}`;
+        simInfo.textContent = `OpenFOAM simulation loaded: ${timeSteps.length} time steps`;
       }
     } catch (error) {
       console.error("Error loading OpenFOAM data:", error);
