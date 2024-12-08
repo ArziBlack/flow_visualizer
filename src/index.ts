@@ -157,16 +157,7 @@ class PipeFlowSimulation {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
 
-    const extension = file.name.toLowerCase().split(".").pop();
-
     try {
-      if (extension === "vtk") {
-        // Handle as OpenFOAM file
-        const files = (event.target as HTMLInputElement).files;
-        if (files) {
-          await this.handleOpenFOAMImport(event);
-        }
-      }
       const model = await this.modelImporter.importModel(file);
       this.visualizer.setModel(model);
 
